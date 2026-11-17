@@ -2,8 +2,8 @@
 // the rows inside the scroll window are in the DOM. Win rate ± 90% interval.
 
 import {
-  apiLeaderboard, absolutize, escapeHtml, formatInterval, formatWinRate,
-  paintRequestsPanel, requestsPanelHtml,
+  apiCompetition, apiLeaderboard, absolutize, escapeHtml, formatInterval,
+  formatUsd, formatWinRate, paintRequestsPanel, requestsPanelHtml,
 } from './util.js';
 
 export function routeLeaderboard(root, slug) {
@@ -19,7 +19,7 @@ export function routeLeaderboard(root, slug) {
       <div class="lb-wrap">
         <div class="lb-scroll" id="lb-scroll">
           <table class="lb"><thead><tr>
-            <th>Rank</th><th>Entrant</th><th id="lb-rate-head">Win rate ± 90%</th>
+            <th>Rank</th><th>Entrant</th><th id="lb-rate-head">Win rate · 90% interval</th>
           </tr></thead><tbody id="lb-body"></tbody></table>
         </div>
         <aside class="entrant-card" id="entrant-card"><p class="sub">Loading entries…</p></aside>
@@ -32,6 +32,7 @@ export function routeLeaderboard(root, slug) {
     status: root.querySelector('#lb-status'),
     entries: [],
     selected: null,
+    rewards: [],
   };
   const card = root.querySelector('#entrant-card');
   let all = [];
@@ -57,7 +58,7 @@ export function routeLeaderboard(root, slug) {
     if (!tr) return;
     view.selected = tr.dataset.handle;
     renderVirtualList(view);
-    selectEntrant(card, view.entries.find((x) => x.handle === view.selected));
+    selectEntrant(card, view.entries.find((x) => x.handle === view.selected), view.rewards);
   });
   root.querySelector('#lb-filter').addEventListener('input', (e) => applyFilter(e.target.value));
   const onResize = () => renderVirtualList(view);
@@ -66,9 +67,13 @@ export function routeLeaderboard(root, slug) {
   const load = async (force) => {
     const data = await apiLeaderboard(slug, { force });
     all = data.entries || [];
+    try {
+      const detail = await apiCompetition(slug, { force });
+      view.rewards = detail.rewardsNow || [];
+    } catch { /* the board stands without prize amounts */ }
     const firstValues = all.length ? (all[0].values || {}) : {};
     root.querySelector('#lb-rate-head').textContent =
-      firstValues.judge !== undefined ? 'Win rate ± 90%' : 'Elo · W-D-L';
+      firstValues.judge !== undefined ? 'Win rate · 90% interval' : 'Elo · W-D-L';
     const comp = data.competition || {};
     root.querySelector('#lb-title').textContent = `${comp.title || slug} — leaderboard`;
     const phase = data.phase || {};
@@ -77,7 +82,7 @@ export function routeLeaderboard(root, slug) {
       : `<p class="provisional-note">Provisional standings — this board is not final; the final heat re-judges every entry afresh.</p>`;
     if (!view.selected && all.length) view.selected = all[0].handle;
     applyFilter(root.querySelector('#lb-filter').value || '');
-    selectEntrant(card, all.find((x) => x.handle === view.selected) || all[0]);
+    selectEntrant(card, all.find((x) => x.handle === view.selected) || all[0], view.rewards);
     paintRequestsPanel(panel);
     window.__shotReady = true;
   };
@@ -88,7 +93,7 @@ export function routeLeaderboard(root, slug) {
     view.body.innerHTML = /404/.test(err.message)
       ? `<tr><td colspan="3">No bounty named “${escapeHtml(slug)}” exists on make.fun.</td></tr>`
       : `<tr><td colspan="3">Could not load the leaderboard: ${escapeHtml(err.message)}</td></tr>`;
-    view.status.textContent = 'rows 0 to 0 of 0, 0 in the DOM';
+    view.status.textContent = 'rows 0 to 0 of 0 ranked, 0 in the DOM';
     window.__shotReady = true;
   });
   return () => window.removeEventListener('resize', onResize);
@@ -120,15 +125,16 @@ export function renderVirtualList(view) {
   body.innerHTML = html || '<tr><td colspan="3">No entries match.</td></tr>';
   const shown = Math.max(0, end - start);
   status.textContent = total
-    ? `rows ${start + 1} to ${end} of ${total}, ${shown} in the DOM`
-    : 'rows 0 to 0 of 0, 0 in the DOM';
+    ? `rows ${start + 1} to ${end} of ${total} ranked, ${shown} in the DOM`
+    : 'rows 0 to 0 of 0 ranked, 0 in the DOM';
 }
 
-export function selectEntrant(card, entry) {
+export function selectEntrant(card, entry, rewards) {
   if (!entry) {
     card.innerHTML = '<p class="sub">Select an entrant to see their card.</p>';
     return;
   }
+  const reward = (rewards || []).find((r) => Number(r.place) === Number(entry.rank));
   const v = entry.values || {};
   const avatar = entry.image ? absolutize(entry.image) : '';
   const scoreHtml = v.judge !== undefined
@@ -143,6 +149,7 @@ export function selectEntrant(card, entry) {
     <h3>@${escapeHtml(entry.handle)}</h3>
     ${scoreHtml}
     rank #${entry.rank}${entry.prize_eligible && entry.rank <= 20 ? ' · <span class="prize-badge">paid place</span>' : ''}</p>
+    ${reward ? `<p class="sub">prize at this rank: <b>${formatUsd(reward.amountUsd)}</b> from the live pot</p>` : ''}
     <p>${escapeHtml(entry.title || '')}</p>
     <a class="btn primary" href="#/profile/${encodeURIComponent(entry.handle)}">Open full profile</a>`;
 }

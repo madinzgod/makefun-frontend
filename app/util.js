@@ -39,7 +39,8 @@ export function cacheStats() {
 
 export function requestsPanelText(stats) {
   const noun = stats.requests === 1 ? 'API request' : 'API requests';
-  return `this view: ${stats.requests} ${noun}, ${stats.unchanged} unchanged (304), ${stats.memory} from memory, updated ${stats.ageS} s ago`;
+  const unchanged = stats.unchanged > 0 ? `, ${stats.unchanged} unchanged (304)` : '';
+  return `this view: ${stats.requests} ${noun}${unchanged}, ${stats.memory} from memory, updated ${stats.ageS} s ago`;
 }
 
 export function requestsPanelHtml() {
@@ -93,13 +94,13 @@ export function formatTimeLeft(deadlineIso, now = Date.now()) {
 export function formatDate(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'UTC' });
 }
 
 export function formatDateTime(iso) {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return '—';
-  return `${formatDate(iso)}, ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}`;
+  return `${formatDate(iso)}, ${d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', timeZone: 'UTC' })} UTC`;
 }
 
 // Liveness is told by the deadline, never the status alone: a bounty past
@@ -238,6 +239,18 @@ export function syncRail(items) {
     rail.selected = featured ? featured.slug : (railVisibleItems()[0] || {}).slug;
     highlightRail();
   }
+}
+
+// When a bounty's own detail page has loaded, its figures are the
+// freshest copy of that bounty anywhere: the rail card adopts them in
+// place, so the card and the detail page's tiles can never disagree.
+export function patchRailCard(slug, detail) {
+  const item = rail.items.find((i) => i.slug === slug);
+  if (!item || !detail) return;
+  for (const key of ['title', 'category', 'potUsd', 'submissionCount', 'entryFeeUsd', 'deadline', 'status']) {
+    if (detail[key] !== undefined && detail[key] !== null) item[key] = detail[key];
+  }
+  paintRailList(false);
 }
 
 export function reloadRail(force) {

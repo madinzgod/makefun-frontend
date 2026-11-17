@@ -3,7 +3,8 @@
 
 import {
   apiCompetition, escapeHtml, formatCount, formatDate, formatDateTime,
-  formatTimeLeft, formatUsd, isLiveByDeadline, paintRequestsPanel, requestsPanelHtml,
+  formatTimeLeft, formatUsd, isLiveByDeadline, paintRequestsPanel, patchRailCard,
+  requestsPanelHtml,
 } from './util.js';
 
 export function routeBounty(root, slug) {
@@ -49,6 +50,7 @@ export function routeBounty(root, slug) {
 
   const load = async (force) => {
     detail = await apiCompetition(slug, { force });
+    patchRailCard(slug, detail);
     render();
   };
   panel.querySelector('.rp-refresh').addEventListener('click', () => load(true).catch(() => {}));
@@ -76,7 +78,7 @@ export function rewardsTableWithBars(rewards) {
     const amount = Number(r.amountUsd) || 0;
     const width = top > 0 ? Math.max(2, Math.round((amount / top) * 100)) : 0;
     return `<tr>
-      <td>#${r.place}</td><td>${formatUsd(r.baseUsd)}</td><td>${formatUsd(r.feeShareUsd)}</td>
+      <td>#${r.place}</td><td>${formatUsd(r.baseUsd)}</td><td>${Number(r.feeShareUsd) > 0 ? formatUsd(r.feeShareUsd) : '—'}</td>
       <td class="amt">${formatUsd(r.amountUsd)}</td>
       <td><div class="bar"><i style="width:${width}%"></i></div></td></tr>`;
   }).join('');

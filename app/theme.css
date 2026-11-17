@@ -31,7 +31,7 @@ h3{margin:0 0 6px;font-size:15px}
 .controls{display:grid;gap:8px;margin-bottom:10px}
 .search{width:100%}
 .view-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.requests-panel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:var(--bd);border-radius:10px;padding:8px 12px;font-size:13.5px}
+.requests-panel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:var(--bd);border-radius:10px;padding:8px 12px;font-size:13.5px;min-width:560px;justify-content:space-between}
 .view-head .requests-panel{margin-left:auto}
 .rp-refresh{background:var(--p2);border:var(--bd);border-radius:8px;padding:4px 12px;cursor:pointer;font-weight:700}
 .card.sel{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
@@ -113,4 +113,5 @@ table.lb td:nth-child(2){max-width:128px;overflow:hidden;text-overflow:ellipsis}
 .rate span{font-size:11.5px}
 .topbar form{margin-left:0;width:100%}
 .topbar form input{flex:1;min-width:0}
+.requests-panel{min-width:0}
 }

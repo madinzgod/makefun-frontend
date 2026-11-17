@@ -20,13 +20,19 @@ export function routeProfile(root, handle) {
   const render = (p) => {
     const avatar = p.avatar ? absolutize(p.avatar.url_small || p.avatar.url) : '';
     const groups = groupEntriesByBounty(p.solutions);
-    const groupHtml = [...groups.values()].map(({ competition: c, entries }) => `
+    const groupHtml = [...groups.values()].map(({ competition: c, entries }) => {
+      // Status follows the freshest deadline, exactly as the rail tells
+      // it: a payload (or list) status can still read "open" hours after
+      // a bounty closed, but its deadline cannot lie.
+      const status = c.status === 'resolved' ? 'resolved' : (isLiveByDeadline(c) ? 'open' : 'closed');
+      return `
       <section class="group-card">
         <h3><a href="#/bounty/${encodeURIComponent(c.slug || '')}">${escapeHtml(c.title || c.slug || '')}</a></h3>
-        <p class="sub">${escapeHtml(c.category || '')} · ${escapeHtml(c.status || '')}${c.pot_usd !== null && c.pot_usd !== undefined && c.pot_usd !== '' ? ` · pot ${formatUsd(c.pot_usd)}` : ''}
+        <p class="sub">${escapeHtml(c.category || '')} · ${escapeHtml(status)}${c.pot_usd !== null && c.pot_usd !== undefined && c.pot_usd !== '' ? ` · pot ${formatUsd(c.pot_usd)}` : ''}
           · <a href="#/leaderboard/${encodeURIComponent(c.slug || '')}">Leaderboard</a></p>
         <ul class="solutions">${entries.map((s) => solutionRow(s, c)).join('')}</ul>
-      </section>`).join('');
+      </section>`;
+    }).join('');
     body.innerHTML = `
       <div class="profile-head">
         ${avatar
@@ -36,7 +42,7 @@ export function routeProfile(root, handle) {
           <h1>@${escapeHtml(p.handle)}</h1>
           <div class="sub">${escapeHtml(p.display_name || '')} joined ${formatDate(p.joined_at)}</div>
           <div class="actions">
-            <a class="btn" href="https://make.fun/u/${encodeURIComponent(p.handle)}" target="_blank" rel="noopener">Enter on make.fun</a>
+            <a class="btn" href="https://make.fun/u/${encodeURIComponent(p.handle)}" target="_blank" rel="noopener">View on make.fun</a>
             ${p.github_login ? `<a class="btn" href="https://github.com/${encodeURIComponent(p.github_login)}" target="_blank" rel="noopener">GitHub</a>` : ''}
           </div>
         </div>

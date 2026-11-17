@@ -35,8 +35,9 @@ its leaderboard, and every entrant's profile.
   columns on wide screens. Unknown handles and slugs show a clear
   *not found* page.
 - **A requests panel on every view** — *this view: X API requests,
-  Y unchanged (304), Z from memory, updated N s ago* — with a Refresh
-  button that revalidates.
+  Z from memory, updated N s ago* (a *Y unchanged (304)* segment joins
+  the line whenever a revalidation actually came back unchanged) —
+  with a Refresh button that revalidates.
 
 ## How it stays fast
 
