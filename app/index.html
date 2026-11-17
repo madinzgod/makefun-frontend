@@ -3,21 +3,14 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>make.fun — live bounties, leaderboards and profiles</title>
-<link rel="stylesheet" href="style.css">
-<script>window.__shotReady = false;</script>
+<title>make.fun — live bounty board</title>
+<style>
+html{background:#0a0a10}body{margin:0;font:14px/1.45 -apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#f4f4f8}
+.ld{padding:48px 20px;text-align:center;color:#9b9bb0}.ld i{display:block;width:26px;height:26px;margin:0 auto 12px;border-radius:50%;border:3px solid #232333;border-top-color:#ff4d94;animation:s 0.8s linear infinite}@keyframes s{to{transform:rotate(360deg)}}
+</style>
 </head>
 <body>
-<header class="top">
-  <a class="brand" href="#/">make.fun</a>
-  <nav><a href="#/">Board</a></nav>
-  <form id="lookup">
-    <input name="handle" placeholder="profile handle, e.g. madinah" aria-label="Profile handle">
-    <button type="submit">View profile</button>
-  </form>
-</header>
-<main id="app"><p class="loading">Loading live data…</p></main>
-<footer class="foot">Every figure on this page is read live from the make.fun public API. An unofficial frontend.</footer>
-<script type="module" src="main.js"></script>
+<div id="app"><p class="ld"><i></i>Loading live bounties…</p></div>
+<script type="module">window.__shotReady=false;import('./app.js');</script>
 </body>
 </html>
