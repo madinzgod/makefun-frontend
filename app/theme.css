@@ -63,7 +63,7 @@ table.rewards td.amt{font-weight:800}
 .group-card,.entrant-card{margin-top:0}
 .phases-panel{display:grid;gap:8px}
 .phase{display:flex;justify-content:space-between;gap:12px;border-bottom:var(--bd);padding:6px 0}
-.phase .when{text-align:right;color:var(--mu);font-size:13px}
+.phase .when{text-align:right;color:var(--mu);font-size:13px;white-space:nowrap}
 .now-marker{background:var(--ac);color:#fff;border-radius:99px;padding:0 8px;font-size:11.5px;font-weight:800}
 .prose{white-space:pre-wrap;color:var(--mu)}
 .stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
