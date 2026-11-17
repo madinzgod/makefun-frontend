@@ -4,7 +4,7 @@
 import {
   apiCompetition, escapeHtml, formatCount, formatDate, formatDateTime,
   formatTimeLeft, formatUsd, isLiveByDeadline, paintRequestsPanel, requestsPanelHtml,
-} from './api.js';
+} from './util.js';
 
 export function routeBounty(root, slug) {
   root.innerHTML = `
@@ -19,7 +19,7 @@ export function routeBounty(root, slug) {
     const live = isLiveByDeadline(detail, now);
     body.innerHTML = `
       <div class="cat">${escapeHtml(detail.category || '')}
-        <span class="pill ${live ? 'live' : 'done'}">${live ? 'Live' : 'Ended'}</span></div>
+        <span class="pill ${live ? 'live' : 'done'}">${live ? 'Live · open' : 'Ended · closed'}</span></div>
       <h1 class="page">${escapeHtml(detail.title)}</h1>
       <div class="stat-grid">
         <div class="stat"><b>${formatUsd(detail.potUsd)}</b><span>live pot</span></div>
@@ -28,7 +28,6 @@ export function routeBounty(root, slug) {
         <div class="stat"><b>${formatDate(detail.publishedAt)}</b><span>published</span></div>
         <div class="stat"><b>${formatDate(detail.deadline)}</b><span>deadline</span></div>
         <div class="stat"><b data-tl data-deadline="${escapeHtml(detail.deadline || '')}">${formatTimeLeft(detail.deadline, now)}</b><span>time left</span></div>
-        <div class="stat"><b>${live ? 'open' : 'closed'}</b><span>status</span></div>
       </div>
       <div class="actions">
         <a class="btn primary" href="#/leaderboard/${encodeURIComponent(slug)}">Leaderboard</a>

@@ -4,7 +4,7 @@
 import {
   apiLeaderboard, absolutize, escapeHtml, formatInterval, formatWinRate,
   paintRequestsPanel, requestsPanelHtml,
-} from './api.js';
+} from './util.js';
 
 export function routeLeaderboard(root, slug) {
   root.innerHTML = `

@@ -1,10 +1,14 @@
 // An account's public profile: its record as stat cards and every entry
-// it has made, grouped by the bounty it was entered in.
+// it has made, grouped by the bounty it was entered in. Group headers
+// prefer the freshest competitions-list data over the profile payload's
+// own figures, and the rail is patched in place with that same list, so
+// one bounty shows one pot everywhere.
 
 import {
-  apiProfile, absolutize, escapeHtml, formatDate, formatUsd, formatWinRate,
-  paintRequestsPanel, requestsPanelHtml,
-} from './api.js';
+  apiCompetitions, apiProfile, absolutize, escapeHtml, formatDate, formatUsd,
+  formatWinRate, isLiveByDeadline, paintRequestsPanel, requestsPanelHtml,
+  syncRail,
+} from './util.js';
 
 export function routeProfile(root, handle) {
   root.innerHTML = `
@@ -21,7 +25,7 @@ export function routeProfile(root, handle) {
         <h3><a href="#/bounty/${encodeURIComponent(c.slug || '')}">${escapeHtml(c.title || c.slug || '')}</a></h3>
         <p class="sub">${escapeHtml(c.category || '')} · ${escapeHtml(c.status || '')}${c.pot_usd !== null && c.pot_usd !== undefined && c.pot_usd !== '' ? ` · pot ${formatUsd(c.pot_usd)}` : ''}
           · <a href="#/leaderboard/${encodeURIComponent(c.slug || '')}">Leaderboard</a></p>
-        <ul class="solutions">${entries.map(solutionRow).join('')}</ul>
+        <ul class="solutions">${entries.map((s) => solutionRow(s, c)).join('')}</ul>
       </section>`).join('');
     body.innerHTML = `
       <div class="profile-head">
@@ -45,7 +49,26 @@ export function routeProfile(root, handle) {
     window.__shotReady = true;
   };
 
-  const load = (force) => loadProfile(handle, { force }).then(render);
+  const load = async (force) => {
+    const p = await loadProfile(handle, { force });
+    try {
+      const data = await apiCompetitions({ force });
+      const items = data.items || [];
+      const bySlug = new Map(items.map((i) => [i.slug, i]));
+      for (const s of p.solutions || []) {
+        const c = s.competition;
+        const fresh = c && bySlug.get(c.slug);
+        if (!fresh) continue;
+        if (fresh.title) c.title = fresh.title;
+        if (fresh.category) c.category = fresh.category;
+        if (fresh.status) c.status = fresh.status;
+        if (fresh.deadline) c.deadline = fresh.deadline;
+        if (fresh.potUsd !== null && fresh.potUsd !== undefined) c.pot_usd = fresh.potUsd;
+      }
+      syncRail(items);
+    } catch { /* the profile stands on its own payload when the list fails */ }
+    render(p);
+  };
   panel.querySelector('.rp-refresh').addEventListener('click', () => load(true).catch(() => {}));
   load(false).catch((err) => {
     body.innerHTML = /404/.test(err.message)
@@ -84,8 +107,12 @@ export function groupEntriesByBounty(solutions) {
   return groups;
 }
 
-function solutionRow(s) {
-  const place = s.placement ? `<span class="place-badge">#${s.placement}</span>` : '<span class="sub">unplaced</span>';
+function solutionRow(s, competition) {
+  const place = s.placement
+    ? `<span class="place-badge">#${s.placement}</span>`
+    : (competition && isLiveByDeadline(competition)
+      ? '<span class="sub">provisional</span>'
+      : '<span class="sub">unplaced</span>');
   const prize = s.prize_usd !== null && s.prize_usd !== undefined && Number(s.prize_usd) > 0
     ? ` · prize ${formatUsd(s.prize_usd)}`
     : '';
