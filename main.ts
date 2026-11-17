@@ -1,24 +1,26 @@
-// Hand-in program for the makefun-frontend-01 entry (Node 22, standard library only).
-// Copies app/ and screenshots/ from this repository into the output directory
-// (MAKEFUN_OUTPUT_DIR, or /output on the grader) and writes dossier.json there with
-// buildDossier from the vendored kit library, under the scorer's own caps, so the
-// dossier handed in is byte for byte the one the scorer rebuilds from the same files.
-import { cpSync, rmSync, writeFileSync } from 'node:fs';
+// Hand-in program for the makefun-frontend-01 entry. It copies the app and
+// its screenshots into the output directory and writes the dossier the
+// judges read, using the kit's own library so the bytes match the gate's
+// rebuild exactly. Standard library only; no network.
+
+import { cpSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildDossier } from './vendor/makefun-frontend.ts';
 
-const repo = dirname(fileURLToPath(import.meta.url));
-const out = process.env.MAKEFUN_OUTPUT_DIR || '/output';
+const repoRoot = dirname(fileURLToPath(import.meta.url));
+const outputDir = process.env.MAKEFUN_OUTPUT_DIR ?? '/output';
 
-for (const name of ['app', 'screenshots']) {
-  rmSync(join(out, name), { recursive: true, force: true });
-  cpSync(join(repo, name), join(out, name), { recursive: true });
-}
+mkdirSync(outputDir, { recursive: true });
+cpSync(join(repoRoot, 'app'), join(outputDir, 'app'), { recursive: true });
+cpSync(join(repoRoot, 'screenshots'), join(outputDir, 'screenshots'), { recursive: true });
 
-writeFileSync(join(out, 'dossier.json'), buildDossier(out, {
+const dossierBytes = buildDossier(outputDir, {
   text_max_bytes: 163840,
   screenshots: { max: 3, max_bytes: 262144 },
   app_max_files: 993,
   app_max_bytes: 16777216,
-}));
+  app_path_max_bytes: 1000,
+});
+writeFileSync(join(outputDir, 'dossier.json'), dossierBytes);
+console.log(`wrote ${join(outputDir, 'dossier.json')} (${dossierBytes.length} bytes)`);
