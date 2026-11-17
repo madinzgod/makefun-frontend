@@ -1,142 +1,52 @@
-// Router for the four surfaces, on hash routes: #/ (board), #/bounty/<slug>,
-// #/bounty/<slug>/leaderboard and #/u/<handle>. window.__shotReady is false while
-// a route loads and true once its data has rendered (error path included), so
-// screenshot tooling knows when to shoot. One shared 30 s interval per view
-// refreshes only the countdown spans.
+// Hash router and boot. Every surface has its own URL and is linked from
+// the others: #/ the board, #/bounty/<slug> a bounty, #/leaderboard/<slug>
+// its leaderboard, #/profile/<handle> an account (the #/u/<handle> spelling
+// and #/bounty/<slug>/leaderboard work too). window.__shotReady is false
+// while a route loads and true once its data is on screen, so screenshot
+// tooling can tell when a page is done.
 
-import { getBounties, getBounty, getLeaderboard, getProfile } from './api.js';
-import { timeLeft } from './format.js';
-import {
-  boardList,
-  boardView,
-  bountyView,
-  errorView,
-  leaderboardRows,
-  leaderboardView,
-  notFoundView,
-  profileView,
-} from './views.js';
+import { boardView, bountyView, leaderboardView, profileView } from './views.js';
+import { esc } from './format.js';
 
 const app = document.getElementById('app');
-const announcer = document.getElementById('announcer');
-let clock = null;
-let navigation = 0;
+let seq = 0;
 
-function stopClock() {
-  if (clock !== null) clearInterval(clock);
-  clock = null;
+function viewFor(parts) {
+  if (parts.length === 0) return boardView();
+  const [head, arg, tail] = parts;
+  if (head === 'bounty' && tail === 'leaderboard') return leaderboardView(arg);
+  if (head === 'bounty') return bountyView(arg);
+  if (head === 'leaderboard') return leaderboardView(arg);
+  if (head === 'profile' || head === 'u') return profileView(arg);
+  return boardView();
 }
 
-function startClock() {
-  stopClock();
-  if (!app.querySelector('[data-until]')) return;
-  clock = setInterval(() => {
-    for (const node of app.querySelectorAll('[data-until]')) {
-      node.textContent = timeLeft(node.getAttribute('data-until'));
-    }
-  }, 30000);
-}
-
-function finish(title) {
-  document.title = title;
-  announcer.textContent = title;
-  window.scrollTo(0, 0);
-  startClock();
+async function route() {
+  const mine = ++seq;
+  window.__shotReady = false;
+  app.innerHTML = '<p class="loading">Loading live data…</p>';
+  const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
+    .map((part) => decodeURIComponent(part));
+  try {
+    const { html, mount } = await viewFor(parts);
+    if (mine !== seq) return; // a newer navigation already owns the page
+    app.innerHTML = html;
+    if (mount) mount(app);
+  } catch (err) {
+    if (mine !== seq) return;
+    app.innerHTML = '<div class="error"><h1>Could not load that page</h1><p>'
+      + esc(err && err.message ? err.message : String(err))
+      + '</p><p><a href="#/">Back to the board</a></p></div>';
+  }
   window.__shotReady = true;
 }
 
-/* The board keeps its items so sorting and filtering re-render only the list. */
-let boardItems = [];
-
-function drawBoardList() {
-  const query = (document.getElementById('filter')?.value || '').trim().toLowerCase();
-  const sort = document.getElementById('sort')?.value || 'ending';
-  let items = boardItems;
-  if (query) {
-    items = items.filter((b) =>
-      [b.title, b.category, ...(Array.isArray(b.skills) ? b.skills : [])]
-        .join(' ')
-        .toLowerCase()
-        .includes(query),
-    );
-  }
-  const by = {
-    ending: (a, b) => new Date(a.deadline) - new Date(b.deadline),
-    pot: (a, b) => Number(b.potUsd ?? b.rewardAmount) - Number(a.potUsd ?? a.rewardAmount),
-    entries: (a, b) => (Number(b.submissionCount) || 0) - (Number(a.submissionCount) || 0),
-  }[sort];
-  const list = document.getElementById('board-list');
-  if (list) {
-    list.innerHTML = boardList([...items].sort(by));
-    startClock();
-  }
-}
-
-async function showBoard() {
-  const data = await getBounties();
-  boardItems = Array.isArray(data.items) ? data.items : [];
-  app.innerHTML = boardView(boardItems);
-  document.getElementById('filter').addEventListener('input', drawBoardList);
-  document.getElementById('sort').addEventListener('change', drawBoardList);
-  drawBoardList();
-  finish('Open bounties | make.fun');
-}
-
-async function showBounty(slug) {
-  const b = await getBounty(slug);
-  app.innerHTML = bountyView(b, slug);
-  finish(`${b.title} | make.fun`);
-}
-
-async function showLeaderboard(slug) {
-  const data = await getLeaderboard(slug);
-  app.innerHTML = leaderboardView(data, slug);
-  const more = app.querySelector('[data-show-all]');
-  if (more) {
-    more.addEventListener('click', () => {
-      const body = document.getElementById('lb-body');
-      if (body) body.innerHTML = leaderboardRows(data, Number.MAX_SAFE_INTEGER);
-      more.closest('.more')?.remove();
-    });
-  }
-  const title = data.competition?.title || slug;
-  finish(`Leaderboard: ${title} | make.fun`);
-}
-
-async function showProfile(handle) {
-  const p = await getProfile(handle);
-  app.innerHTML = profileView(p, handle);
-  finish(`@${p.handle || handle} | make.fun`);
-}
-
-async function render() {
-  const mine = ++navigation;
-  window.__shotReady = false;
-  stopClock();
-  app.innerHTML = '<p class="loading" role="status">Loading…</p>';
-  const hash = location.hash || '#/';
-  const bounty = hash.match(/^#\/bounty\/([^/]+)(\/leaderboard)?\/?$/);
-  const profile = hash.match(/^#\/u\/([^/]+)\/?$/);
-  try {
-    if (bounty && bounty[2]) await showLeaderboard(decodeURIComponent(bounty[1]));
-    else if (bounty) await showBounty(decodeURIComponent(bounty[1]));
-    else if (profile) await showProfile(decodeURIComponent(profile[1]));
-    else if (hash === '#/' || hash === '#' || hash === '') await showBoard();
-    else {
-      app.innerHTML = notFoundView();
-      finish('Page not found | make.fun');
-    }
-  } catch (err) {
-    if (mine !== navigation) return;
-    app.innerHTML = errorView(err instanceof Error ? err.message : 'The request failed.');
-    document.title = 'Could not load | make.fun';
-    announcer.textContent = 'That page could not be loaded.';
-    window.__shotReady = true;
-  }
-}
-
-app.addEventListener('click', (event) => {
-  if (event.target instanceof Element && event.target.closest('[data-retry]')) render();
+document.getElementById('lookup').addEventListener('submit', (event) => {
+  event.preventDefault();
+  const handle = String(new FormData(event.target).get('handle') || '')
+    .trim().replace(/^@/, '');
+  if (handle) location.hash = '#/profile/' + encodeURIComponent(handle);
 });
-window.addEventListener('hashchange', render);
-render();
+
+window.addEventListener('hashchange', route);
+route();

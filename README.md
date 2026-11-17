@@ -2,41 +2,26 @@
 [![rank](https://make.fun/badge/makefun-frontend-01/madinzgod/makefun-frontend/rank.svg)](https://make.fun/bounty/makefun-frontend-01/leaderboard?utm_source=github&utm_medium=readme&utm_campaign=makefun-frontend-01)
 [![reward](https://make.fun/badge/makefun-frontend-01/madinzgod/makefun-frontend/reward.svg)](https://make.fun/bounty/makefun-frontend-01?utm_source=github&utm_medium=readme&utm_campaign=makefun-frontend-01)
 
-# make.fun frontend — entry for makefun-frontend-01
+# Lean Live Frontend for make.fun
 
-A fast, lightweight static frontend for [make.fun](https://make.fun), built with
-plain HTML, CSS and ES modules — no framework, no build step. It reads make.fun's
-public API only (read-only, no sign-in) and has four surfaces on hash routes:
+A dependency-free static frontend for make.fun, built for the
+makefun-frontend-01 bounty. Six small files under `app/` (about 10 KB
+gzipped on first load, no framework, no build step) render four surfaces
+from make.fun's public API, each reachable by a link and by its own URL:
 
-- `#/` — the board of open bounties: live pot, entry fee, time left, entry count,
-  with text filter and sorting (ending soon / biggest pot / most entries).
-- `#/bounty/<slug>` — a bounty's page: facts, rewards table (live fee split when
-  the API reports it), description and rules, all rendered as escaped text.
-- `#/bounty/<slug>/leaderboard` — the leaderboard: rank, entrant, entry and the
-  judge win rate, capped at 100 rows with a "show all" button.
-- `#/u/<handle>` — a public profile: avatar, record as a stat grid, wallet,
-  GitHub link and the account's entries.
+- `#/` — the board: every competition with its live pot, entry fee,
+  entries count and time left.
+- `#/bounty/<slug>` — a bounty's page: summary, live pot, the rewards
+  table with fee shares, dates, status read off the deadline, and rules.
+- `#/leaderboard/<slug>` — the bounty's ranked leaderboard with win rates.
+- `#/profile/<handle>` — a public profile: avatar, record and entries.
 
-API answers are cached with their ETags (30 s soft TTL, then `If-None-Match`
-revalidation), repeat views share one in-flight request, and a single 30 s
-interval per view refreshes only the countdown text.
+`app/api.js` caches API answers per URL with their ETags: an answer under
+30 seconds old is served with no request, an older one is revalidated with
+If-None-Match and reused on a 304, so moving between surfaces repeats few
+requests.
 
-## Serve it locally
-
-```
-node serve.ts            # http://localhost:8080
-node serve.ts --port N   # another port
-```
-
-## Build the dossier
-
-```
-mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts
-```
-
-This copies `app/` and `screenshots/` into `out/` and writes `out/dossier.json`
-with `vendor/makefun-frontend.ts` (the kit's library, unchanged).
-
-## License
-
-MIT — see `LICENSE`.
+Run it with `node serve.ts` and open http://localhost:8080. `node main.ts`
+(with `MAKEFUN_OUTPUT_DIR` set) hands the entry in: it copies `app/` and
+`screenshots/` out and writes the dossier built by
+`vendor/makefun-frontend.ts`.

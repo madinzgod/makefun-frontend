@@ -3,23 +3,21 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="description" content="A fast, lightweight frontend for make.fun: bounty board, bounty pages, leaderboards and profiles.">
-<title>make.fun bounties</title>
+<title>make.fun — live bounties, leaderboards and profiles</title>
 <link rel="stylesheet" href="style.css">
-<script type="module" src="main.js"></script>
+<script>window.__shotReady = false;</script>
 </head>
 <body>
-<a class="skip" href="#app">Skip to content</a>
-<header class="topbar">
+<header class="top">
   <a class="brand" href="#/">make.fun</a>
-  <nav aria-label="Main">
-    <a href="#/">Board</a>
-  </nav>
+  <nav><a href="#/">Board</a></nav>
+  <form id="lookup">
+    <input name="handle" placeholder="profile handle, e.g. madinah" aria-label="Profile handle">
+    <button type="submit">View profile</button>
+  </form>
 </header>
-<main id="app" tabindex="-1"></main>
-<div id="announcer" class="sr-only" aria-live="polite"></div>
-<footer class="foot">
-  <p>A lightweight community frontend reading make.fun's public API. Read-only; no sign-in.</p>
-</footer>
+<main id="app"><p class="loading">Loading live data…</p></main>
+<footer class="foot">Every figure on this page is read live from the make.fun public API. An unofficial frontend.</footer>
+<script type="module" src="main.js"></script>
 </body>
 </html>

@@ -1,213 +1,175 @@
-// The four surfaces, each a function from API data to an HTML string. Every API
-// string is escaped with esc(); countdown spans carry data-until so the router's
-// one shared interval can refresh just their text.
+// One render function per surface. Each returns the HTML for <main> and,
+// when the surface needs wiring once it lands, a mount function. All data
+// comes through api.js, so surfaces share its ETag cache.
 
-import { bytes, date, day, esc, money, paragraphs, percent, shortAddress, timeLeft } from './format.js';
+import { competitions, competition, leaderboard, profile } from './api.js';
+import { usd, pct, count, day, timeLeft, esc } from './format.js';
 
-const bountyHref = (slug) => `#/bounty/${encodeURIComponent(slug)}`;
-const profileHref = (handle) => `#/u/${encodeURIComponent(handle)}`;
-const potOf = (b) => money(b.potUsd ?? b.rewardAmount); // live pot: prize + fees paid in
-const until = (iso) => `<span data-until="${esc(iso)}">${esc(timeLeft(iso))}</span>`;
-const entriesLabel = (n) => `${Number(n) || 0} ${Number(n) === 1 ? 'entry' : 'entries'}`;
+// A bounty takes entries until its deadline, whatever its status says.
+const open = (c) => Date.parse(c.deadline) > Date.now();
 
-/* Board */
+// ---- the board: every live bounty with its pot, fee, time left, entries
 
-export function boardCard(b) {
-  const closed = new Date(b.deadline).getTime() <= Date.now();
-  return `<article class="card${closed ? ' is-closed' : ''}">
-    <h3 class="card-title"><a href="${bountyHref(b.slug)}">${esc(b.title)}</a></h3>
-    <p class="pot">${esc(potOf(b))}</p>
-    <p class="pot-note">live pot</p>
-    <ul class="meta">
-      <li>${closed ? 'Closed' : until(b.deadline)}</li>
-      <li>${esc(entriesLabel(b.submissionCount))}</li>
-      <li>${b.entryFeeUsd ? `${esc(money(b.entryFeeUsd))} entry fee` : 'Free to enter'}</li>
-      ${b.category ? `<li>${esc(b.category)}</li>` : ''}
-    </ul></article>`;
+function card(c) {
+  const fee = c.entryFeeUsd != null && Number(c.entryFeeUsd) > 0
+    ? '<span>Fee ' + usd(c.entryFeeUsd) + '</span>'
+    : '<span>Free entry</span>';
+  const pill = open(c)
+    ? '<span class="pill on">Open</span>'
+    : '<span class="pill off">Closed</span>';
+  return '<article class="card">'
+    + '<div class="card-top"><span class="cat">' + esc(c.category || 'Bounty') + ' ' + pill + '</span>'
+    + '<span class="pot">' + usd(c.potUsd ?? c.rewardAmount) + '</span></div>'
+    + '<h2><a href="#/bounty/' + esc(c.slug) + '">' + esc(c.title) + '</a></h2>'
+    + (c.summary ? '<p class="sum">' + esc(c.summary) + '</p>' : '')
+    + '<div class="meta"><span>' + count(c.submissionCount) + ' entries</span>' + fee
+    + '<span>' + timeLeft(c.deadline) + '</span></div>'
+    + '<div class="card-links"><a href="#/bounty/' + esc(c.slug) + '">Details</a>'
+    + '<a href="#/leaderboard/' + esc(c.slug) + '">Leaderboard</a></div></article>';
 }
 
-export function boardList(items) {
-  if (!items.length) return '<p class="empty">No open bounties match. Try clearing the filter.</p>';
-  return `<div class="grid">${items.map(boardCard).join('')}</div>`;
+export async function boardView() {
+  const data = await competitions();
+  const items = (data.items || []).slice();
+  items.sort((a, b) => (open(b) - open(a)) || (open(a)
+    ? Date.parse(a.deadline) - Date.parse(b.deadline)
+    : Date.parse(b.deadline) - Date.parse(a.deadline)));
+  const live = items.filter(open).length;
+  const html = '<div class="head"><h1>Live bounties</h1><p>' + items.length
+    + ' competitions · ' + live + ' still taking entries</p></div>'
+    + '<div class="grid">' + items.map(card).join('') + '</div>';
+  return { html };
 }
 
-export function boardView(items) {
-  return `<h1>Open bounties</h1>
-  <p class="lede">Live competitions on make.fun. The pot grows as entry fees are paid in.</p>
-  <div class="controls">
-    <label class="grow">Filter
-      <input id="filter" type="search" placeholder="Search titles, categories, skills…" autocomplete="off">
-    </label>
-    <label>Sort
-      <select id="sort">
-        <option value="ending">Ending soon</option>
-        <option value="pot">Biggest pot</option>
-        <option value="entries">Most entries</option>
-      </select>
-    </label>
-  </div>
-  <div id="board-list">${boardList(items)}</div>`;
+// ---- a bounty's page: summary, live pot, rewards table, dates, rules
+
+function rewardsTable(rows) {
+  if (!rows || !rows.length) return '';
+  const body = rows.map((r) => '<tr><td>#' + r.place + '</td><td>' + usd(r.amountUsd)
+    + '</td><td class="dim">' + usd(r.baseUsd) + ' base + ' + usd(r.feeShareUsd)
+    + ' fee share</td></tr>').join('');
+  return '<h2>Rewards</h2><table class="tbl"><thead><tr><th>Place</th><th>Prize</th>'
+    + '<th>How it is made up</th></tr></thead><tbody>' + body + '</tbody></table>';
 }
 
-/* Bounty page */
+function stat(value, label) {
+  return '<div class="stat"><b>' + value + '</b><span>' + label + '</span></div>';
+}
 
-function rewardsTable(b) {
-  if (Array.isArray(b.rewardsNow) && b.rewardsNow.length) {
-    const rows = b.rewardsNow.map((r) =>
-      `<tr><td>${esc(r.place)}</td><td>${esc(money(r.baseUsd))}</td><td>${esc(money(r.feeShareUsd))}</td><td><strong>${esc(money(r.amountUsd))}</strong></td></tr>`).join('');
-    return `<table class="tbl"><thead><tr><th>Place</th><th>Prize</th><th>Fee share</th><th>Total now</th></tr></thead><tbody>${rows}</tbody></table>`;
+export async function bountyView(slug) {
+  const c = await competition(slug);
+  const status = open(c)
+    ? 'Open · ' + timeLeft(c.deadline)
+    : 'Closed · ended ' + day(c.deadline);
+  let rules = '';
+  if (typeof c.rules === 'string' && c.rules.trim()) {
+    rules = '<h2>Rules</h2><div class="prose">' + esc(c.rules) + '</div>';
+  } else if (Array.isArray(c.rules) && c.rules.length) {
+    rules = '<h2>Rules</h2><ul>' + c.rules.map((r) => '<li>' + esc(r) + '</li>').join('') + '</ul>';
   }
-  if (b.rewards && typeof b.rewards === 'object') {
-    const rows = Object.keys(b.rewards).sort((a, c) => Number(a) - Number(c))
-      .map((place) => `<tr><td>${esc(place)}</td><td><strong>${esc(money(b.rewards[place]))}</strong></td></tr>`).join('');
-    return `<table class="tbl"><thead><tr><th>Place</th><th>Prize</th></tr></thead><tbody>${rows}</tbody></table>`;
-  }
-  return '<p class="empty">No reward table published yet.</p>';
+  const html = '<p class="crumb"><a href="#/">← Board</a></p>'
+    + '<div class="head"><span class="cat">' + esc(c.category || 'Bounty') + '</span>'
+    + '<h1>' + esc(c.title) + '</h1>'
+    + (c.summary ? '<p class="lede">' + esc(c.summary) + '</p>' : '') + '</div>'
+    + '<div class="stats">'
+    + stat(usd(c.potUsd ?? c.rewardAmount), 'Live pot')
+    + stat(count(c.submissionCount), 'Entries')
+    + stat(c.entryFeeUsd != null ? usd(c.entryFeeUsd) : 'Free', 'Entry fee')
+    + stat(day(c.deadline), 'Deadline') + '</div>'
+    + '<p class="status">' + status + ' · opened ' + day(c.opensAt) + '</p>'
+    + '<p><a class="btn" href="#/leaderboard/' + esc(c.slug) + '">View the leaderboard</a></p>'
+    + rewardsTable(c.rewardsNow)
+    + (c.description ? '<h2>About</h2><div class="prose">' + esc(c.description) + '</div>' : '')
+    + rules;
+  return { html };
 }
 
-export function bountyView(b, slug) {
-  const closed = new Date(b.deadline).getTime() <= Date.now();
-  const rules = b.rules ? String(b.rules) : '';
-  const rulesBlock = rules.length > 1200
-    ? `<details class="rules"><summary>Rules</summary><div class="prose">${paragraphs(rules)}</div></details>`
-    : rules ? `<h2>Rules</h2><div class="prose">${paragraphs(rules)}</div>` : '';
-  return `<p class="crumbs"><a href="#/">← All bounties</a></p>
-  <h1>${esc(b.title)}</h1>
-  ${b.summary ? `<p class="lede">${esc(b.summary)}</p>` : ''}
-  <section class="stats" aria-label="Bounty facts">
-    <div class="stat"><span class="stat-num pot-big">${esc(potOf(b))}</span><span class="stat-label">Live pot</span></div>
-    <div class="stat"><span class="stat-num">${b.entryFeeUsd ? esc(money(b.entryFeeUsd)) : 'Free'}</span><span class="stat-label">Entry fee</span></div>
-    <div class="stat"><span class="stat-num">${esc(Number(b.submissionCount) || 0)}</span><span class="stat-label">Entries</span></div>
-    <div class="stat"><span class="stat-num">${closed ? 'Closed' : until(b.deadline)}</span><span class="stat-label">Deadline · ${esc(date(b.deadline))}</span></div>
-  </section>
-  <p><a class="button" href="${bountyHref(slug)}/leaderboard">View the leaderboard</a></p>
-  <h2>Rewards</h2>
-  ${rewardsTable(b)}
-  ${b.description ? `<h2>About</h2><div class="prose">${paragraphs(b.description)}</div>` : ''}
-  ${rulesBlock}
-  ${Array.isArray(b.skills) && b.skills.length ? `<h2>Skills</h2><ul class="chips">${b.skills.map((s) => `<li>${esc(s)}</li>`).join('')}</ul>` : ''}`;
+// ---- a bounty's leaderboard: ranked entries with their win rates
+
+let lbRows = [];
+const LB_PAGE = 50;
+
+function lbRow(e) {
+  const tag = e.house ? ' <span class="tag">house</span>'
+    : e.baseline ? ' <span class="tag">baseline</span>' : '';
+  return '<tr><td>' + (e.rank ?? '') + '</td>'
+    + '<td><a href="#/profile/' + esc(e.handle) + '">@' + esc(e.handle) + '</a>' + tag + '</td>'
+    + '<td>' + esc(e.title || '') + '</td>'
+    + '<td class="num">' + pct(e.values && e.values.judge) + '</td></tr>';
 }
 
-/* Leaderboard */
-
-/** The entries array, wherever this envelope keeps it. */
-export function leaderboardEntries(data) {
-  for (const pool of [data, data.leaderboard, data.results]) {
-    if (!pool || typeof pool !== 'object') continue;
-    for (const key of ['entries', 'items', 'rows']) {
-      if (Array.isArray(pool[key])) return pool[key];
-    }
-  }
-  return [];
-}
-
-function leaderboardColumns(data) {
-  const cols = Array.isArray(data.columns) ? data.columns.filter((c) => c && !c.hidden && c.key) : [];
-  return cols.length ? cols : [{ key: data.rank_key || 'judge', title: 'Win rate' }];
-}
-
-function cellText(entry, col, rankKey) {
-  const raw = entry.values ? entry.values[col.key] : undefined;
-  const shown = entry.display ? entry.display[col.key] : undefined;
-  if (col.key === 'valid') return raw === 1 || shown === '1' ? '✓' : '—';
-  if (col.key === 'bytes') return esc(bytes(raw ?? shown));
-  const micro = typeof col.source === 'string' && col.source.includes('micro');
-  if (raw != null && (micro || col.key === rankKey || col.key.startsWith(`${rankKey}_`))) return esc(percent(raw));
-  return esc(shown ?? raw ?? '');
-}
-
-export function leaderboardRows(data, limit) {
-  const cols = leaderboardColumns(data);
-  const rankKey = data.rank_key || data.leaderboard?.rankKey || 'judge';
-  return leaderboardEntries(data).slice(0, limit).map((e, i) => {
-    const handle = e.handle || e.entrant || e.username;
-    const entrant = handle ? `<a href="${profileHref(handle)}">@${esc(handle)}</a>` : esc(e.display_name || '—');
-    const cells = cols.map((c) => `<td>${cellText(e, c, rankKey)}</td>`).join('');
-    return `<tr><td class="rank">${esc(e.rank ?? e.prize_rank ?? i + 1)}</td><td>${entrant}</td><td>${esc(e.title || '')}</td>${cells}</tr>`;
-  }).join('');
-}
-
-export function leaderboardView(data, slug, limit = 100) {
-  const entries = leaderboardEntries(data);
-  const cols = leaderboardColumns(data);
-  const comp = data.competition || {};
-  const phase = data.phase && typeof data.phase === 'object' ? data.phase.title : data.phase;
-  const head = cols.map((c) => `<th scope="col">${esc(c.title || c.key)}</th>`).join('');
-  const table = entries.length
-    ? `<div class="tbl-wrap"><table class="tbl">
-        <thead><tr><th scope="col">Rank</th><th scope="col">Entrant</th><th scope="col">Entry</th>${head}</tr></thead>
-        <tbody id="lb-body">${leaderboardRows(data, limit)}</tbody></table></div>
-      ${entries.length > limit ? `<p class="more"><button type="button" class="button" data-show-all>Show all ${entries.length} entries</button></p>` : ''}`
-    : '<p class="empty">No entries on the board yet — placements may still be held for this phase.</p>';
-  return `<p class="crumbs"><a href="${bountyHref(slug)}">← Back to the bounty</a></p>
-  <h1>${esc(comp.title || data.title || slug)} — leaderboard</h1>
-  <p class="lede">${esc(phase || data.title || 'Results')}${data.placements_held ? ' · placements held until the phase finalizes' : ''}</p>
-  ${table}`;
-}
-
-/* Profile */
-
-/** An avatar URL from the profile's fields, made absolute on make.fun. */
-function avatarUrl(p, handle) {
-  const raw = (typeof p.image === 'string' && p.image)
-    || (typeof p.avatar === 'string' && p.avatar)
-    || (p.avatar && typeof p.avatar === 'object' && p.avatar.url)
-    || `/api/profiles/${encodeURIComponent(handle)}/picture.png`;
-  return raw.startsWith('http') ? raw : `https://make.fun${raw.startsWith('/') ? '' : '/'}${raw}`;
-}
-
-export function profileView(p, handle) {
-  const record = p.record || {};
-  const stats = [
-    ['Entered', record.competitions_entered],
-    ['Placed', record.competitions_placed],
-    ['Won', record.competitions_won],
-    ['Podiums', record.podium_finishes],
-    ['Best placement', record.best_placement ? `#${record.best_placement}` : null],
-    ['Prizes won', record.prize_usd != null ? money(record.prize_usd) : null],
-  ].filter(([, v]) => v !== null && v !== undefined && v !== '');
-  const wallet = p.wallet && p.wallet.address
-    ? `<p>Wallet ${p.wallet.explorer_url
-        ? `<a href="${esc(p.wallet.explorer_url)}" target="_blank" rel="noopener"><code>${esc(shortAddress(p.wallet.address))}</code></a>`
-        : `<code>${esc(shortAddress(p.wallet.address))}</code>`}</p>`
+export async function leaderboardView(slug) {
+  const [comp, data] = await Promise.all([competition(slug), leaderboard(slug)]);
+  lbRows = (data.entries || []).slice(0, 100);
+  const first = lbRows.slice(0, LB_PAGE);
+  const more = lbRows.length > first.length
+    ? '<p><button type="button" data-show-all>Show all ' + lbRows.length + ' entries</button></p>'
     : '';
-  const solutions = Array.isArray(p.solutions) ? p.solutions : [];
-  const solutionList = solutions.length
-    ? `<ul class="solutions">${solutions.map((s) => {
-        const comp = s.competition || {};
-        const link = comp.slug ? `<a href="${bountyHref(comp.slug)}">${esc(s.title || comp.title || 'Entry')}</a>` : esc(s.title || 'Entry');
-        return `<li>${link}${comp.title && s.title ? ` <span class="muted">in ${esc(comp.title)}</span>` : ''}</li>`;
-      }).join('')}</ul>`
-    : '<p class="empty">No entries yet.</p>';
-  return `<div class="profile-head">
-    <img class="avatar" crossorigin="anonymous" alt="" width="72" height="72" src="${esc(avatarUrl(p, handle))}">
-    <div>
-      <h1>${esc(p.display_name || p.handle || handle)}</h1>
-      <p class="handle">@${esc(p.handle || handle)}${p.joined_at ? ` · joined ${esc(day(p.joined_at))}` : ''}</p>
-    </div>
-  </div>
-  ${p.bio ? `<div class="prose">${paragraphs(p.bio)}</div>` : ''}
-  ${stats.length ? `<section class="stats" aria-label="Record">${stats.map(([label, v]) => `<div class="stat"><span class="stat-num">${esc(v)}</span><span class="stat-label">${esc(label)}</span></div>`).join('')}</section>` : ''}
-  ${wallet}
-  ${p.github_login ? `<p>GitHub: <a href="https://github.com/${esc(encodeURIComponent(p.github_login))}" target="_blank" rel="noopener">@${esc(p.github_login)}</a></p>` : ''}
-  <h2>Entries</h2>
-  ${solutionList}`;
+  const html = '<p class="crumb"><a href="#/bounty/' + esc(slug) + '">← '
+    + esc(comp.title || slug) + '</a></p>'
+    + '<div class="head"><h1>Leaderboard</h1><p>' + esc(comp.title || '')
+    + ' · win rate against the whole field, best first</p></div>'
+    + '<table class="tbl"><thead><tr><th>Rank</th><th>Entrant</th><th>Entry</th>'
+    + '<th class="num">Win rate</th></tr></thead>'
+    + '<tbody id="lb-body">' + first.map(lbRow).join('') + '</tbody></table>'
+    + more;
+  const mount = (root) => {
+    const btn = root.querySelector('[data-show-all]');
+    if (!btn) return;
+    btn.addEventListener('click', () => {
+      root.querySelector('#lb-body').innerHTML = lbRows.map(lbRow).join('');
+      btn.remove();
+    });
+  };
+  return { html, mount };
 }
 
-/* States */
+// ---- an account's public profile: avatar, record and their entries
 
-export function errorView(message) {
-  return `<div class="error" role="alert">
-    <h1>That page could not be loaded</h1>
-    <p>${esc(message)}</p>
-    <p><button type="button" class="button" data-retry>Try again</button></p>
-  </div>`;
-}
-
-export function notFoundView() {
-  return `<div class="error">
-    <h1>Page not found</h1>
-    <p>That address does not match a board, bounty, leaderboard or profile.</p>
-    <p><a class="button" href="#/">Go to the board</a></p>
-  </div>`;
+export async function profileView(handle) {
+  const p = await profile(handle);
+  const av = p.avatar && (p.avatar.url_small || p.avatar.url)
+    ? (p.avatar.url_small || p.avatar.url)
+    : (typeof p.image === 'string' ? p.image : null);
+  const avatar = av
+    ? '<img class="avatar" crossorigin="anonymous" src="' + esc(av) + '" alt="">'
+    : '<span class="avatar avatar-none">' + esc((p.handle || '?').slice(0, 1).toUpperCase()) + '</span>';
+  const rec = p.record || {};
+  const stats = stat(count(rec.competitions_entered), 'Entered')
+    + stat(count(rec.competitions_placed), 'Placed')
+    + stat(count(rec.competitions_won), 'Won')
+    + stat(count(rec.podium_finishes), 'Podiums')
+    + stat(rec.best_placement != null ? '#' + rec.best_placement : '–', 'Best place')
+    + stat(usd(rec.prize_usd), 'Prizes won');
+  const solutions = (p.solutions || []).map((s) => {
+    const comp = s.competition || {};
+    const bits = [];
+    if (s.placement != null) bits.push('placed #' + s.placement);
+    if (s.prize_usd != null && Number(s.prize_usd) > 0) bits.push(usd(s.prize_usd));
+    if (s.score && s.score.display) {
+      bits.push(esc((s.score.column ? s.score.column.title + ': ' : '') + s.score.display));
+    }
+    return '<li><a href="#/bounty/' + esc(comp.slug || '') + '">' + esc(s.title || 'Entry') + '</a>'
+      + '<span class="dim"> in ' + esc(comp.title || '')
+      + (bits.length ? ' · ' + bits.join(' · ') : '') + '</span></li>';
+  }).join('');
+  const links = [];
+  if (p.github_login) {
+    links.push('<a href="https://github.com/' + esc(p.github_login) + '">GitHub @'
+      + esc(p.github_login) + '</a>');
+  }
+  if (p.wallet && p.wallet.address) {
+    links.push('<span class="dim">Wallet ' + esc(p.wallet.address) + '</span>');
+  }
+  const html = '<div class="profile-head">' + avatar + '<div>'
+    + '<h1>' + esc(p.display_name || p.handle) + '</h1>'
+    + '<p class="dim">@' + esc(p.handle) + ' · joined ' + day(p.joined_at) + '</p>'
+    + (p.bio ? '<p>' + esc(p.bio) + '</p>' : '')
+    + (links.length ? '<p>' + links.join(' · ') + '</p>' : '')
+    + '</div></div>'
+    + '<div class="stats">' + stats + '</div>'
+    + '<h2>Entries</h2>'
+    + (solutions ? '<ul class="solutions">' + solutions + '</ul>'
+      : '<p class="dim">No entries yet.</p>');
+  return { html };
 }
