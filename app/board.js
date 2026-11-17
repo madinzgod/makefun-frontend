@@ -306,4 +306,18 @@ export function bootApp() {
   dispatchRoute();
 }
 
-bootApp();
+// The shell carries only critical CSS; the rest of the styles live in
+// app.css and arrive with this deferred module. Boot waits for the sheet
+// so no view ever paints unstyled.
+function loadAppCss() {
+  return new Promise((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = './app.css';
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+  });
+}
+
+loadAppCss().then(() => bootApp());

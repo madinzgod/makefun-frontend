@@ -19,7 +19,7 @@ export function routeProfile(root, handle) {
     const groupHtml = [...groups.values()].map(({ competition: c, entries }) => `
       <section class="group-card">
         <h3><a href="#/bounty/${encodeURIComponent(c.slug || '')}">${escapeHtml(c.title || c.slug || '')}</a></h3>
-        <p class="sub">${escapeHtml(c.category || '')} · ${escapeHtml(c.status || '')} · pot ${formatUsd(c.pot_usd)}
+        <p class="sub">${escapeHtml(c.category || '')} · ${escapeHtml(c.status || '')}${c.pot_usd !== null && c.pot_usd !== undefined && c.pot_usd !== '' ? ` · pot ${formatUsd(c.pot_usd)}` : ''}
           · <a href="#/leaderboard/${encodeURIComponent(c.slug || '')}">Leaderboard</a></p>
         <ul class="solutions">${entries.map(solutionRow).join('')}</ul>
       </section>`).join('');
@@ -86,13 +86,15 @@ export function groupEntriesByBounty(solutions) {
 
 function solutionRow(s) {
   const place = s.placement ? `<span class="place-badge">#${s.placement}</span>` : '<span class="sub">unplaced</span>';
-  const prize = s.prize_usd ? formatUsd(s.prize_usd) : '—';
+  const prize = s.prize_usd !== null && s.prize_usd !== undefined && Number(s.prize_usd) > 0
+    ? ` · prize ${formatUsd(s.prize_usd)}`
+    : '';
   const score = s.score && s.score.value !== null && s.score.value !== undefined
     ? (s.score.column && s.score.column.key === 'elo'
       ? `Elo ${s.score.value}`
       : `${formatWinRate(s.score.value)} win rate`)
     : '';
   return `<li><b>${escapeHtml(s.title || '')}</b><br>
-    ${place} · prize ${prize}${score ? ` · ${score}` : ''}<br>
+    ${place}${prize}${score ? ` · ${score}` : ''}<br>
     <span class="sub">entered ${formatDate(s.entered_at)}</span></li>`;
 }

@@ -68,7 +68,8 @@ export function cacheStats() {
 }
 
 export function requestsPanelText(stats) {
-  return `this view: ${stats.requests} API requests, ${stats.unchanged} unchanged (304), ${stats.memory} from memory, updated ${stats.ageS} s ago`;
+  const noun = stats.requests === 1 ? 'API request' : 'API requests';
+  return `this view: ${stats.requests} ${noun}, ${stats.unchanged} unchanged (304), ${stats.memory} from memory, updated ${stats.ageS} s ago`;
 }
 
 export function requestsPanelHtml() {

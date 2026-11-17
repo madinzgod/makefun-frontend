@@ -88,10 +88,13 @@ export function rewardsTableWithBars(rewards) {
 
 export function datesAndPhasesPanel(detail) {
   const now = Date.now();
+  let nowMarked = false;
   const phases = (detail.phases || []).map((p) => {
     const start = new Date(p.startsAt).getTime();
     const end = new Date(p.endsAt).getTime();
-    const marker = now >= start && now < end
+    const current = !nowMarked && now >= start && now < end;
+    if (current) nowMarked = true;
+    const marker = current
       ? ' <span class="now-marker">Now</span>'
       : now >= end ? ' <span class="sub">done</span>' : ' <span class="sub">upcoming</span>';
     return `<div class="phase"><div><b>${escapeHtml(p.title)}</b>${marker}<br>
@@ -100,7 +103,7 @@ export function datesAndPhasesPanel(detail) {
   }).join('');
   return `<div class="phases-panel">
     <div class="phase"><div><b>Published</b></div><div class="when">${formatDateTime(detail.publishedAt)}</div></div>
-    <div class="phase"><div><b>Entries close</b>${now < new Date(detail.deadline).getTime() ? ' <span class="now-marker">Now</span>' : ''}</div>
+    <div class="phase"><div><b>Entries close</b></div>
       <div class="when">${formatDateTime(detail.deadline)}</div></div>
     ${phases}</div>`;
 }

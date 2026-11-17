@@ -52,7 +52,8 @@ its leaderboard, and every entrant's profile.
 
 ## Layout
 
-- `app/index.html` — the shell (styles inline) that boots the app
+- `app/index.html` — the shell (critical styles inline) that boots the app
+- `app/app.css` — the remaining styles, loaded with the deferred code
 - `app/api.js` — the ETag cache, requests panel and row patching
 - `app/board.js` — the shell, the persistent rail and the router
 - `app/bounty.js`, `app/leaderboard.js`, `app/profile.js` — the views

@@ -1,0 +1,96 @@
+:root{--gr:#0a7a44}
+.logo i{font-style:normal;background:linear-gradient(90deg,var(--ac),var(--a2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.topbar nav a{color:var(--mu);font-weight:600}
+.tabs button,.chips button{background:var(--p2);border:var(--bd);border-radius:9px;padding:7px 13px;cursor:pointer;font-weight:600}
+.btn{display:inline-block;background:var(--p2);border:var(--bd);border-radius:9px;padding:7px 13px;cursor:pointer;font-weight:600;color:var(--text)}
+.btn.primary,.tabs button.on,.chips button.on{background:linear-gradient(90deg,var(--ac),var(--a2));border-color:transparent;color:#fff}
+h1.page{font-size:26px;margin:6px 0 12px}
+h2{font-size:19px;margin:22px 0 10px}
+h3{margin:0 0 6px;font-size:15px}
+.sub{color:var(--mu);font-size:13px}
+.controls{display:grid;gap:8px;margin-bottom:10px}
+.search{width:100%}
+.view-head{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.requests-panel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;background:var(--panel);border:var(--bd);border-radius:10px;padding:8px 12px;font-size:13.5px}
+.view-head .requests-panel{margin-left:auto}
+.rp-refresh{background:var(--p2);border:var(--bd);border-radius:8px;padding:4px 12px;cursor:pointer;font-weight:700}
+.card.sel{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac)}
+.card .pot{font-size:19px;font-weight:800}
+.card .pot span{font-size:12px;color:var(--mu);font-weight:400}
+.card .meta{color:var(--mu);font-size:13px}
+.cat{color:var(--mu);font-size:12.5px}
+.pill{display:inline-block;padding:0 8px;border-radius:99px;font-size:11.5px;font-weight:700;vertical-align:2px}
+.pill.live{background:#dcf5e8;color:var(--gr)}
+.pill.done{background:#e8e8ef;color:var(--mu)}
+.board-detail{background:var(--panel);border:var(--bd);border-radius:14px;padding:16px 18px}
+.board-detail h2{margin-top:6px}
+.big-pot{font-size:32px;font-weight:800}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.detail-grid{display:grid;grid-template-columns:1.6fr 1fr;gap:14px;align-items:start}
+.entrant-mini{border:var(--bd);border-radius:10px;padding:10px 12px;display:grid;gap:8px;justify-items:start}
+img.avatar,.avatar-initial{width:52px;height:52px;border-radius:50%}
+img.avatar{object-fit:cover;background:var(--p2)}
+.avatar-initial{display:inline-flex;align-items:center;justify-content:center;background:linear-gradient(135deg,var(--ac),var(--a2));color:#fff;font-weight:800;font-size:20px}
+.entrant-mini img.avatar,.entrant-mini .avatar-initial{width:44px;height:44px;font-size:17px}
+table.rewards{width:100%;border-collapse:collapse;font-size:13.5px}
+table.rewards th,table.rewards td{padding:5px 8px;border-bottom:var(--bd);text-align:right}
+table.rewards th:first-child,table.rewards td:first-child{text-align:left}
+table.rewards th{color:var(--mu);text-transform:uppercase;font-size:11.5px}
+table.rewards td.amt{font-weight:800}
+.bar{background:var(--p2);border-radius:99px;height:8px;min-width:56px;overflow:hidden}
+.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--ac),var(--a2))}
+.panel-card,.group-card,.entrant-card{background:var(--panel);border:var(--bd);border-radius:14px;padding:16px 18px;margin-top:14px}
+.group-card,.entrant-card{margin-top:0}
+.phases-panel{display:grid;gap:8px}
+.phase{display:flex;justify-content:space-between;gap:12px;border-bottom:var(--bd);padding:6px 0}
+.phase .when{text-align:right;color:var(--mu);font-size:13px}
+.now-marker{background:var(--ac);color:#fff;border-radius:99px;padding:0 8px;font-size:11.5px;font-weight:800}
+.prose{white-space:pre-wrap;color:var(--mu)}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin:12px 0}
+.stat{background:var(--panel);border:var(--bd);border-radius:12px;padding:12px 14px}
+.stat b{display:block;font-size:20px}
+.stat span{color:var(--mu);font-size:12.5px}
+.board-detail .stat{background:var(--p2)}
+.back-link{font-weight:600}
+.error-box{background:#fdecec;border:1px solid var(--red);border-radius:12px;padding:14px 16px}
+.lb-tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.lb-tools .search{flex:1;width:auto}
+#lb-status{color:var(--mu);font-size:14px;font-weight:600}
+.provisional-note{background:#fff4d6;border:1px solid #d9a514;border-radius:10px;padding:8px 12px;color:#7a5b00}
+.lb-wrap{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:14px;align-items:start}
+.lb-scroll{height:560px;overflow:auto;border:var(--bd);border-radius:12px;background:var(--panel)}
+table.lb{width:100%;border-collapse:collapse;font-size:14.5px}
+table.lb th,table.lb td{padding:8px 10px;border-bottom:var(--bd);text-align:left;white-space:nowrap}
+table.lb th{position:sticky;top:0;background:var(--p2);z-index:1}
+tr.lb-row{cursor:pointer}
+tr.lb-row.sel td{background:#ffe3f1}
+.rate{font-weight:800}
+.rate span{color:var(--mu);font-weight:400;font-size:12.5px}
+.prize-badge{background:#dcf5e8;color:var(--gr);border-radius:99px;padding:0 7px;font-size:11px;font-weight:800}
+.entrant-card{position:sticky;top:64px}
+.entrant-card .rate{font-size:26px}
+.profile-head{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
+.profile-head h1{margin:0}
+.groups{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.solutions{list-style:none;margin:8px 0 0;padding:0;display:grid;gap:10px}
+.solutions li{border-top:var(--bd);padding-top:8px}
+.place-badge{background:linear-gradient(90deg,var(--ac),var(--a2));color:#fff;border-radius:99px;padding:0 8px;font-size:12px;font-weight:800}
+@media (max-width:1180px){
+.lb-wrap{grid-template-columns:1fr}
+.entrant-card{position:static}
+}
+@media (max-width:900px){
+.shell{grid-template-columns:1fr}
+#rail{position:static}
+.rail-list{max-height:46vh}
+.detail-grid{grid-template-columns:1fr}
+.lb-scroll{height:52vh}
+.groups{grid-template-columns:1fr}
+table.lb .col-entry{display:none}
+table.lb{font-size:13.5px}
+table.lb th,table.lb td{padding:8px 6px}
+table.lb td:nth-child(2){max-width:128px;overflow:hidden;text-overflow:ellipsis}
+.rate span{font-size:11.5px}
+.topbar form{margin-left:0;width:100%}
+.topbar form input{flex:1;min-width:0}
+}
